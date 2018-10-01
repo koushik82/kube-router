@@ -6,6 +6,10 @@ metadata:
   labels:
     k8s-app: kube-router
 spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   template:
     metadata:
       labels:
@@ -15,11 +19,18 @@ spec:
     spec:
       containers:
       - name: kube-router
-        image: cloudnativelabs/kube-router
+        image: cloudnativelabs/kube-router:v0.2.0
         args: ["--run-router=false", "--run-firewall=true", "--run-service-proxy=false", "--kubeconfig=/var/lib/kube-router/kubeconfig"]
         securityContext:
           privileged: true
         imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 4000m
+            memory: 256Mi
+          requests:
+            cpu: 25m
+            memory: 18Mi
         env:
         - name: NODE_NAME
           valueFrom:
@@ -38,16 +49,10 @@ spec:
         - name: kubecerts
           mountPath: /etc/kubernetes/certs/
           readOnly: true
+        - name: xtables-lock
+          mountPath: /run/xtables.lock
       nodeSelector:
         beta.kubernetes.io/os: linux
-      initContainers:
-      - name: install-cni
-        image: busybox
-        imagePullPolicy: Always
-        command:
-        - /bin/sh
-        - -c
-        - set -e -x;
       hostNetwork: true
       tolerations:
       - key: CriticalAddonsOnly
@@ -65,5 +70,7 @@ spec:
       - name: kubecerts
         hostPath:
           path: /etc/kubernetes/certs/
-
-          
+      - name: xtables-lock
+        hostPath:
+          path: /run/xtables.lock
+          type: File
